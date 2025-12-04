@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Reading Tracker</title>
+    <link rel="icon" href="https://claude.ai/favicon.ico" type="image/x-icon">
+    <style>
+        /* Anthropic Brand Colors */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #F0EFEA;
+            min-height: 100vh;
+            color: #141413;
+            line-height: 1.5;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            width: 280px;
+            background: #FFFFFF;
+            border-right: 1px solid rgba(130, 129, 121, 0.15);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            transform: translateX(0);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 280px;
+            top: 20px;
+            width: 32px;
+            height: 32px;
+            background: #FFFFFF;
+            border: 1px solid rgba(130, 129, 121, 0.2);
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 101;
+            color: #828179;
+            font-size: 1rem;
+        }
+
+        .sidebar-toggle:hover {
+            background: #F0EFEA;
+            color: #141413;
+        }
+
+        .sidebar.collapsed + .sidebar-toggle {
+            left: 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .sidebar-toggle .icon-open,
+        .sidebar.collapsed + .sidebar-toggle .icon-close {
+            display: none;
+        }
+
+        .sidebar.collapsed + .sidebar-toggle .icon-open {
+            display: block;
+        }
+
+        .sidebar-toggle .icon-close {
+            display: block;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 50px 0 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #141413;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        /* Sidebar content styles */
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #828179;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: #F0EFEA;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-number {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #CC785C;
+        }
+
+        .stat-label {
+            color: #828179;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .progress-section {
+            margin-bottom: 16px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #CC785C;
+            margin-bottom: 6px;
+        }
+
+        .progress-bar-container {
+            background: rgba(130, 129, 121, 0.15);
+            border-radius: 4px;
+            height: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #CC785C;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .sidebar-search {
+            width: 100%;
+            padding: 12px 14px;
+            background: #F0EFEA;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: #141413;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-search:focus {
+            outline: none;
+            border-color: #CC785C;
+            background: #FFFFFF;
+        }
+
+        .sidebar-search::placeholder {
+            color: #828179;
+        }
+
+        .sidebar-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            background: #FFFFFF;
+            color: #141413;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+        }
+
+        .filter-btn.active {
+            background: #141413;
+            border-color: #141413;
+            color: #FFFFFF;
+        }
+
+        .section-filter-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            background: #FFFFFF;
+            color: #141413;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .section-filter-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+        }
+
+        .section-filter-btn.active {
+            background: #141413;
+            border-color: #141413;
+            color: #FFFFFF;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-280px);
+                box-shadow: none;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+                box-shadow: 4px 0 20px rgba(20, 20, 19, 0.15);
+            }
+
+            .sidebar-toggle {
+                left: 0;
+            }
+
+            .sidebar.open + .sidebar-toggle {
+                left: 280px;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .category {
+            margin-bottom: 32px;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(130, 129, 121, 0.2);
+        }
+
+        .category-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #141413;
+        }
+
+        .editable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .editable:hover {
+            background: rgba(204, 120, 92, 0.1);
+        }
+
+        .category-title.editable {
+            padding: 4px 8px;
+            margin: -4px -8px;
+        }
+
+        h1.editable {
+            padding: 8px 16px;
+            margin: -8px -16px;
+            border-radius: 8px;
+        }
+
+
+        .inline-edit {
+            background: #FFFFFF;
+            border: 2px solid #CC785C;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: #141413;
+            text-align: center;
+            width: auto;
+            min-width: 200px;
+        }
+
+        .inline-edit:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.2);
+        }
+
+        h1 .inline-edit {
+            font-size: 2.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+
+        .category-title .inline-edit {
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .url-input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .url-input-row input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .url-input-row .modal-btn {
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .fetch-status {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+
+        .fetch-status.loading {
+            color: #828179;
+        }
+
+        .fetch-status.success {
+            color: #5a8a5a;
+        }
+
+        .fetch-status.error {
+            color: #a85454;
+        }
+
+        .form-divider {
+            border: none;
+            border-top: 1px solid rgba(130, 129, 121, 0.2);
+            margin: 20px 0;
+        }
+
+        .url-fetch-group {
+            background: rgba(204, 120, 92, 0.05);
+            margin: -32px -32px 20px -32px;
+            padding: 24px 32px;
+            border-radius: 16px 16px 0 0;
+            border-bottom: 1px solid rgba(130, 129, 121, 0.15);
+        }
+
+        .category-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-edit-btn, .category-delete-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            background: transparent;
+            color: #828179;
+            font-size: 0.9rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            opacity: 0;
+        }
+
+        .category-header:hover .category-edit-btn,
+        .category-header:hover .category-delete-btn {
+            opacity: 1;
+        }
+
+        .category-edit-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+            background: rgba(204, 120, 92, 0.08);
+        }
+
+        .category-delete-btn:hover {
+            border-color: #a85454;
+            color: #a85454;
+            background: rgba(180, 80, 80, 0.08);
+        }
+
+        .category-count {
+            color: #828179;
+            font-size: 0.85rem;
+        }
+
+        .add-to-section-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: 1px dashed rgba(130, 129, 121, 0.3);
+            background: transparent;
+            color: #828179;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 400;
+            transition: all 0.2s ease;
+        }
+
+        .add-to-section-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+            background: rgba(204, 120, 92, 0.05);
+        }
+
+        .reading-item {
+            background: #FFFFFF;
+            border: 1px solid rgba(130, 129, 121, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+            cursor: grab;
+        }
+
+        .reading-item:hover {
+            border-color: rgba(130, 129, 121, 0.3);
+            box-shadow: 0 2px 8px rgba(20, 20, 19, 0.06);
+        }
+
+        .reading-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .reading-item.completed {
+            opacity: 0.55;
+        }
+
+        .reading-item.completed.dragging {
+            opacity: 0.3;
+        }
+
+        .category.drag-over {
+            background: rgba(204, 120, 92, 0.08);
+            border-radius: 12px;
+            margin: -8px;
+            padding: 8px;
+        }
+
+        .category.drag-over .category-header {
+            border-bottom-color: #CC785C;
+        }
+
+        .drop-indicator {
+            height: 3px;
+            background: #CC785C;
+            border-radius: 2px;
+            margin: 4px 0;
+            display: none;
+        }
+
+        .drop-indicator.visible {
+            display: block;
+        }
+
+        .reading-item.completed .item-title {
+            text-decoration: line-through;
+            text-decoration-color: #828179;
+        }
+
+        .checkbox-wrapper {
+            flex-shrink: 0;
+            padding-top: 2px;
+        }
+
+        .checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid rgba(130, 129, 121, 0.4);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox:hover {
+            border-color: #CC785C;
+        }
+
+        .checkbox.checked {
+            background: #CC785C;
+            border-color: #CC785C;
+        }
+
+        .checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .item-content {
+            flex-grow: 1;
+        }
+
+        .item-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+            line-height: 1.4;
+            color: #141413;
+        }
+
+        .item-title a {
+            color: #CC785C;
+            text-decoration: none;
+        }
+
+        .item-title a:hover {
+            text-decoration: underline;
+        }
+
+        .item-meta {
+            font-size: 0.85rem;
+            color: #828179;
+            line-height: 1.4;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .edit-btn, .delete-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            background: transparent;
+            color: #828179;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .edit-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+        }
+
+        .delete-btn:hover {
+            border-color: #a85454;
+            color: #a85454;
+            background: rgba(180, 80, 80, 0.08);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(20, 20, 19, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 32px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(20, 20, 19, 0.2);
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #141413;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal textarea, .modal input, .modal select {
+            width: 100%;
+            background: #F0EFEA;
+            border: 1px solid rgba(130, 129, 121, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #141413;
+            font-family: inherit;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .modal textarea {
+            height: 120px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .modal input:focus, .modal textarea:focus, .modal select:focus {
+            outline: none;
+            border-color: #CC785C;
+            box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.1);
+        }
+
+        .modal input::placeholder, .modal textarea::placeholder {
+            color: #828179;
+        }
+
+        .modal label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #828179;
+            margin-bottom: 6px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn.cancel {
+            background: transparent;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            color: #828179;
+        }
+
+        .modal-btn.cancel:hover {
+            border-color: #141413;
+            color: #141413;
+        }
+
+        .modal-btn.save {
+            background: #141413;
+            border: none;
+            color: #FFFFFF;
+        }
+
+        .modal-btn.save:hover {
+            background: #CC785C;
+        }
+
+        .modal-btn.danger {
+            background: #a85454;
+            border: none;
+            color: #FFFFFF;
+        }
+
+        .modal-btn.danger:hover {
+            background: #8a4545;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 14px 18px;
+            background: #FFFFFF;
+            border: 1px solid rgba(130, 129, 121, 0.2);
+            border-radius: 10px;
+            color: #141413;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(20, 20, 19, 0.04);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #CC785C;
+            box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.1);
+        }
+
+        .search-box::placeholder {
+            color: #828179;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #828179;
+            background: #FFFFFF;
+            border-radius: 12px;
+            border: 1px solid rgba(130, 129, 121, 0.15);
+        }
+
+        .admin-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .admin-btn {
+            padding: 12px 24px;
+            background: #FFFFFF;
+            border: 1px solid rgba(130, 129, 121, 0.3);
+            color: #141413;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .admin-btn:hover {
+            border-color: #CC785C;
+            color: #CC785C;
+        }
+
+        .admin-btn.primary {
+            background: #CC785C;
+            border-color: #CC785C;
+            color: white;
+        }
+
+        .admin-btn.primary:hover {
+            background: #b5694f;
+        }
+
+        .reset-btn {
+            display: block;
+            margin: 40px auto;
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid rgba(180, 80, 80, 0.3);
+            color: #a85454;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .reset-btn:hover {
+            background: rgba(180, 80, 80, 0.08);
+            border-color: rgba(180, 80, 80, 0.5);
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #828179;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .stats { gap: 12px; }
+            .stat-card { padding: 16px 20px; min-width: 100px; }
+            .stat-number { font-size: 1.8rem; }
+            .reading-item { flex-direction: column; gap: 12px; }
+            .item-actions { align-self: flex-start; }
+            .form-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="progress-section">
+                    <div class="progress-label">
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-number" id="completed-count">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Remaining</div>
+                        <div class="stat-number" id="remaining-count">60</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Search</div>
+                <input type="text" class="sidebar-search" id="search-box" placeholder="Search by title or author">
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Section</div>
+                <div class="sidebar-filters">
+                    <button class="section-filter-btn active" data-section="all">All</button>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Status</div>
+                <div class="sidebar-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="unread">Unread</button>
+                    <button class="filter-btn" data-filter="completed">Completed</button>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Actions</div>
+                <div class="sidebar-filters">
+                    <button class="filter-btn" id="add-reading-btn">Add reading</button>
+                    <button class="filter-btn" id="add-section-btn">Add section</button>
+                    <button class="filter-btn" id="reset-btn">Reset</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar Toggle Button -->
+        <button class="sidebar-toggle" id="sidebar-toggle">
+            <span class="icon-close">☰</span>
+            <span class="icon-open">☰</span>
+        </button>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <header>
+                    <h1 id="page-title" class="editable" title="Click to edit">AI Reading Tracker</h1>
+                </header>
+
+                <div id="readings-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Reading Modal -->
+    <div class="modal-overlay" id="reading-modal">
+        <div class="modal">
+            <h3 id="reading-modal-title">Add New Reading</h3>
+            <div class="form-group url-fetch-group">
+                <label>URL (paste to auto-fill metadata)</label>
+                <div class="url-input-row">
+                    <input type="url" id="reading-url" placeholder="https://...">
+                    <button type="button" class="modal-btn save" id="fetch-metadata-btn">Fetch</button>
+                </div>
+                <div class="fetch-status" id="fetch-status"></div>
+            </div>
+            <hr class="form-divider">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" id="reading-title" placeholder="Enter title">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Author *</label>
+                    <input type="text" id="reading-author" placeholder="Enter author">
+                </div>
+                <div class="form-group">
+                    <label>Year *</label>
+                    <input type="number" id="reading-year" placeholder="2024">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Category * (move entry by changing this)</label>
+                <select id="reading-category">
+                    <!-- Populated by JavaScript -->
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="reading-cancel">Cancel</button>
+                <button class="modal-btn save" id="reading-save">Save Reading</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal" style="max-width: 400px;">
+            <h3>Delete Reading</h3>
+            <p id="delete-message" style="margin-bottom: 20px; color: #828179;">Are you sure you want to delete this reading?</p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="delete-cancel">Cancel</button>
+                <button class="modal-btn danger" id="delete-confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Delete Modal -->
+    <div class="modal-overlay" id="category-delete-modal">
+        <div class="modal" style="max-width: 450px;">
+            <h3>Merge Section</h3>
+            <p id="category-delete-message" style="margin-bottom: 20px; color: #828179;"></p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="category-delete-cancel">Cancel</button>
+                <button class="modal-btn save" id="category-delete-confirm">Merge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Section Modal -->
+    <div class="modal-overlay" id="section-modal">
+        <div class="modal" style="max-width: 450px;">
+            <h3>Add New Section</h3>
+            <div class="form-group">
+                <label>Section Name *</label>
+                <input type="text" id="section-name" placeholder="e.g., Research Papers">
+            </div>
+            <div class="form-group">
+                <label>Position</label>
+                <select id="section-position">
+                    <!-- Populated by JavaScript -->
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="section-cancel">Cancel</button>
+                <button class="modal-btn save" id="section-save">Add Section</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Section Modal -->
+    <div class="modal-overlay" id="edit-section-modal">
+        <div class="modal" style="max-width: 450px;">
+            <h3>Edit Section</h3>
+            <div class="form-group">
+                <label>Section Name *</label>
+                <input type="text" id="edit-section-name" placeholder="e.g., Research Papers">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="edit-section-cancel">Cancel</button>
+                <button class="modal-btn save" id="edit-section-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default readings data
+        const defaultReadings = [
+            // Writing (Quick Reads)
+            { id: 1, category: "Quick Reads (5-15 min)", title: "The Bitter Lesson", author: "Rich Sutton", year: 2019, url: "http://www.incompleteideas.net/IncIdeas/BitterLesson.html" },
+            { id: 50, category: "Quick Reads (5-15 min)", title: "The Urgency of Interpretability", author: "Anthropic", year: 2024, url: "https://www.anthropic.com/news/the-urgency-of-interpretability" },
+            { id: 51, category: "Quick Reads (5-15 min)", title: "Anthropic's Responsible Scaling Policy", author: "Anthropic", year: 2023, url: "https://www.anthropic.com/news/anthropics-responsible-scaling-policy" },
+            { id: 52, category: "Quick Reads (5-15 min)", title: "The Anthropic Economic Index", author: "Anthropic", year: 2025, url: "https://www.anthropic.com/news/the-anthropic-economic-index" },
+            { id: 60, category: "Quick Reads (5-15 min)", title: "AI as Normal Technology", author: "Arvind Narayanan & Sayash Kapoor", year: 2024, url: "https://www.aisnakeoil.com/p/ai-as-normal-technology" },
+            { id: 25, category: "Quick Reads (5-15 min)", title: "Machines of Loving Grace", author: "Dario Amodei", year: 2024, url: "https://darioamodei.com/machines-of-loving-grace" },
+            { id: 57, category: "Quick Reads (5-15 min)", title: "AI 2027", author: "AI Futures Project", year: 2025, url: "https://ai-2027.com/" },
+            { id: 58, category: "Quick Reads (5-15 min)", title: "Situational Awareness: The Decade Ahead", author: "Leopold Aschenbrenner", year: 2024, url: "https://situational-awareness.ai/" },
+            { id: 59, category: "Quick Reads (5-15 min)", title: "The Most Important Century", author: "Holden Karnofsky", year: 2021, url: "https://www.cold-takes.com/most-important-century/" },
+
+            // Research (Medium Papers & Essays)
+            { id: 18, category: "Medium Papers & Essays (30-60 min)", title: "Scaling Laws for Neural Language Models", author: "Kaplan et al.", year: 2020, url: "https://arxiv.org/abs/2001.08361" },
+            { id: 21, category: "Medium Papers & Essays (30-60 min)", title: "Concrete Problems in AI Safety", author: "Amodei et al.", year: 2016, url: "https://arxiv.org/abs/1606.06565" },
+            { id: 24, category: "Medium Papers & Essays (30-60 min)", title: "Constitutional AI: Harmlessness from AI Feedback", author: "Anthropic", year: 2022, url: "https://arxiv.org/abs/2212.08073" },
+            { id: 54, category: "Medium Papers & Essays (30-60 min)", title: "A Mathematical Framework for Transformer Circuits", author: "Anthropic", year: 2021, url: "https://transformer-circuits.pub/2021/framework/index.html" },
+            { id: 55, category: "Medium Papers & Essays (30-60 min)", title: "Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet", author: "Anthropic", year: 2024, url: "https://www.anthropic.com/research/mapping-mind-language-model" },
+            { id: 56, category: "Medium Papers & Essays (30-60 min)", title: "Frontier Red Teaming for AI Safety", author: "Anthropic", year: 2024, url: "https://www.anthropic.com/news/frontier-red-teaming-for-ai-safety" },
+            { id: 53, category: "Medium Papers & Essays (30-60 min)", title: "Towards Monosemanticity: Decomposing Language Models With Dictionary Learning", author: "Anthropic", year: 2023, url: "https://www.anthropic.com/research/towards-monosemanticity" },
+            { id: 61, category: "Medium Papers & Essays (30-60 min)", title: "Persona vectors: Monitoring and controlling character traits in language models", author: "Anthropic", year: 2025, url: "https://www.anthropic.com/research/persona-vectors" },
+            { id: 62, category: "Medium Papers & Essays (30-60 min)", title: "Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback", author: "Bai et al.", year: 2022, url: "https://arxiv.org/abs/2204.05862" },
+            { id: 67, category: "Medium Papers & Essays (30-60 min)", title: "Progress from our Frontier Red Team", author: "Anthropic", year: 2025, url: "https://www.anthropic.com/news/strategic-warning-for-ai-risk-progress-and-insights-from-our-frontier-red-team" },
+
+            // Podcasts
+            { id: 69, category: "Podcasts", title: "Dario Amodei (Anthropic CEO) - Scaling, Alignment, & AI Progress", author: "Dwarkesh Patel", year: 2025, url: "https://www.dwarkesh.com/p/dario-amodei" },
+            { id: 70, category: "Podcasts", title: "What If Dario Amodei Is Right about AI?", author: "Ezra Klein", year: 2025, url: "https://www.nytimes.com/2024/04/12/opinion/ezra-klein-podcast-dario-amodei.html" },
+            { id: 71, category: "Podcasts", title: "A Cheeky Pint with Anthropic CEO Dario Amodei", author: "Cheeky Pint", year: 2025, url: "https://cheekypint.substack.com/p/a-cheeky-pint-with-anthropic-ceo" },
+
+            // Video
+            { id: 63, category: "Video", title: "Mike Krieger (Anthropic) at the Cerebral Valley AI Summit", author: "Newcomer AI Summits", year: 2025, url: "https://www.youtube.com/watch?v=BhUyWzf7cWc" },
+            { id: 64, category: "Video", title: "The Future of U.S. AI Leadership with CEO of Anthropic Dario Amodei", author: "Council on Foreign Relations", year: 2025, url: "https://www.youtube.com/watch?v=esCSpbDPJik" },
+            { id: 65, category: "Video", title: "Inside Anthropic's Race to Build a Smarter Claude and Human-Level AI", author: "WSJ News", year: 2025, url: "https://www.youtube.com/watch?v=snkOMOjiVOk" },
+            { id: 66, category: "Video", title: "Building Anthropic: A conversation with our cofounders", author: "Anthropic", year: 2024, url: "https://www.youtube.com/watch?v=om2lIWXLLN4" },
+            { id: 68, category: "Video", title: "President and Co-Founder Anthropic, Daniela Amodei: AI Hurricane", author: "Kleiner Perkins", year: 2025, url: "https://www.youtube.com/watch?v=BhUyWzf7cWc" },
+        ];
+
+        // Default category names (display names for built-in categories)
+        const defaultCategoryNames = {
+            "Quick Reads (5-15 min)": "Writing",
+            "Medium Papers & Essays (30-60 min)": "Research"
+        };
+
+        // Default custom sections
+        const defaultCustomSections = [
+            { name: "Podcasts", position: 2 },
+            { name: "Video", position: 3 }
+        ];
+
+        // Load readings from localStorage or use defaults
+        let readings = JSON.parse(localStorage.getItem('ai-readings')) || [...defaultReadings];
+
+        // State
+        let completedIds = JSON.parse(localStorage.getItem('ai-reading-completed') || '[]');
+        let pageSettings = JSON.parse(localStorage.getItem('ai-reading-page-settings') || '{}');
+        let categoryNames = JSON.parse(localStorage.getItem('ai-reading-categories')) || {...defaultCategoryNames};
+        let currentFilter = 'all';
+        let currentSectionFilter = 'all';
+        let searchQuery = '';
+        let currentReadingId = null;
+
+        // Default page settings
+        const defaultPageTitle = 'AI Reading Tracker';
+
+        // Default category order (can be extended with custom sections)
+        const builtInCategoryOrder = [
+            "Quick Reads (5-15 min)",
+            "Medium Papers & Essays (30-60 min)"
+        ];
+
+        // Load custom sections from localStorage or use defaults
+        let customSections = JSON.parse(localStorage.getItem('ai-reading-custom-sections')) || [...defaultCustomSections];
+
+        // Get the full category order (built-in + custom)
+        function getCategoryOrder() {
+            // Merge built-in and custom sections, maintaining order
+            const allSections = [...builtInCategoryOrder];
+            customSections.forEach(section => {
+                if (section.position !== undefined && section.position <= allSections.length) {
+                    allSections.splice(section.position, 0, section.name);
+                } else {
+                    allSections.push(section.name);
+                }
+            });
+            return allSections;
+        }
+
+        // For backwards compatibility
+        const defaultCategoryOrder = getCategoryOrder();
+
+        function getDisplayCategoryName(originalName) {
+            return categoryNames[originalName] || originalName;
+        }
+
+        function getOriginalCategoryName(displayName) {
+            for (const [original, display] of Object.entries(categoryNames)) {
+                if (display === displayName) return original;
+            }
+            return displayName;
+        }
+
+        // DOM elements
+        const container = document.getElementById('readings-container');
+        const completedCount = document.getElementById('completed-count');
+        const remainingCount = document.getElementById('remaining-count');
+        const progressBar = document.getElementById('progress-bar');
+        const searchBox = document.getElementById('search-box');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // Modals
+        const readingModal = document.getElementById('reading-modal');
+        const deleteModal = document.getElementById('delete-modal');
+        const categoryDeleteModal = document.getElementById('category-delete-modal');
+        const sectionModal = document.getElementById('section-modal');
+        const editSectionModal = document.getElementById('edit-section-modal');
+
+        // Category deletion/editing state
+        let categoryToDelete = null;
+        let categoryToEdit = null;
+
+        function saveReadings() {
+            localStorage.setItem('ai-readings', JSON.stringify(readings));
+        }
+
+        function updateStats() {
+            const completed = completedIds.filter(id => readings.some(r => r.id === id)).length;
+            const total = readings.length;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            completedCount.textContent = completed;
+            remainingCount.textContent = total - completed;
+            progressBar.style.width = `${percent}%`;
+            document.getElementById('progress-percent').textContent = `${percent}%`;
+        }
+
+        function getFilteredReadings() {
+            return readings.filter(r => {
+                const matchesSearch = searchQuery === '' ||
+                    r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.author.toLowerCase().includes(searchQuery.toLowerCase());
+
+                let matchesFilter = true;
+                if (currentFilter === 'unread') {
+                    matchesFilter = !completedIds.includes(r.id);
+                } else if (currentFilter === 'completed') {
+                    matchesFilter = completedIds.includes(r.id);
+                }
+
+                let matchesSection = true;
+                if (currentSectionFilter !== 'all') {
+                    matchesSection = r.category === currentSectionFilter;
+                }
+
+                return matchesSearch && matchesFilter && matchesSection;
+            });
+        }
+
+        function renderSectionFilters() {
+            const categoryOrder = getCategoryOrder();
+            // Get categories that have readings OR are custom sections (always show custom sections)
+            const customSectionNames = customSections.map(s => s.name);
+            const categoriesToShow = categoryOrder.filter(cat =>
+                readings.some(r => r.category === cat) || customSectionNames.includes(cat)
+            );
+
+            let html = `<button class="section-filter-btn ${currentSectionFilter === 'all' ? 'active' : ''}" data-section="all">All</button>`;
+            categoriesToShow.forEach(cat => {
+                const displayName = getDisplayCategoryName(cat);
+                html += `<button class="section-filter-btn ${currentSectionFilter === cat ? 'active' : ''}" data-section="${cat}">${displayName}</button>`;
+            });
+
+            const container = document.querySelector('.sidebar-section .sidebar-filters:has(.section-filter-btn)');
+            if (container) {
+                container.innerHTML = html;
+                // Re-attach event listeners
+                container.querySelectorAll('.section-filter-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        container.querySelectorAll('.section-filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        currentSectionFilter = btn.dataset.section;
+                        render();
+                    });
+                });
+            }
+        }
+
+        function render() {
+            const filtered = getFilteredReadings();
+            const categoryOrder = getCategoryOrder();
+
+            const grouped = {};
+            filtered.forEach(r => {
+                if (!grouped[r.category]) grouped[r.category] = [];
+                grouped[r.category].push(r);
+            });
+
+            // Sort items within each group: unread first, then alphabetically by title
+            Object.keys(grouped).forEach(category => {
+                grouped[category].sort((a, b) => {
+                    const aCompleted = completedIds.includes(a.id);
+                    const bCompleted = completedIds.includes(b.id);
+                    // Unread (not completed) first
+                    if (aCompleted !== bCompleted) {
+                        return aCompleted ? 1 : -1;
+                    }
+                    // Then alphabetically by title
+                    return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+                });
+            });
+
+            // Determine which categories to show (those with readings + custom sections)
+            const customSectionNames = customSections.map(s => s.name);
+            const categoriesToRender = categoryOrder.filter(cat =>
+                grouped[cat] || customSectionNames.includes(cat)
+            );
+
+            // Apply section filter to categoriesToRender
+            const filteredCategoriesToRender = currentSectionFilter === 'all'
+                ? categoriesToRender
+                : categoriesToRender.filter(cat => cat === currentSectionFilter);
+
+            if (filteredCategoriesToRender.length === 0) {
+                container.innerHTML = '<div class="empty-state">No readings match your search or filter.</div>';
+                return;
+            }
+
+            let html = '';
+
+            filteredCategoriesToRender.forEach((category, index) => {
+                const items = grouped[category] || [];
+                const completedInCategory = items.filter(r => completedIds.includes(r.id)).length;
+                const displayName = getDisplayCategoryName(category);
+                const isFirstCategory = filteredCategoriesToRender[0] === category;
+
+                html += `
+                    <div class="category" data-category="${category}">
+                        <div class="category-header">
+                            <div class="category-title-wrapper">
+                                <h2 class="category-title" data-category="${category}">${displayName}</h2>
+                                <button class="category-edit-btn" data-category="${category}" title="Edit section">✎</button>
+                                ${!isFirstCategory ? `<button class="category-delete-btn" data-category="${category}" title="Merge into previous section">×</button>` : ''}
+                            </div>
+                            <span class="category-count">${completedInCategory}/${items.length}</span>
+                        </div>
+                        <div class="drop-indicator" data-category="${category}"></div>
+                `;
+
+                items.forEach(r => {
+                    const isCompleted = completedIds.includes(r.id);
+                    const titleHtml = r.url
+                        ? `<a href="${r.url}" target="_blank" rel="noopener">${r.title}</a>`
+                        : r.title;
+
+                    html += `
+                        <div class="reading-item ${isCompleted ? 'completed' : ''}" data-id="${r.id}" draggable="true">
+                            <div class="checkbox-wrapper">
+                                <div class="checkbox ${isCompleted ? 'checked' : ''}" data-id="${r.id}"></div>
+                            </div>
+                            <div class="item-content">
+                                <div class="item-title">${titleHtml}</div>
+                                <div class="item-meta item-author">${r.author} (${r.year})</div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="edit-btn" data-id="${r.id}" title="Edit">✎</button>
+                                <button class="delete-btn" data-id="${r.id}" title="Delete">×</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Add "+" button at the bottom of each section
+                html += `
+                    <button class="add-to-section-btn" data-category="${category}" title="Add reading to this section">+</button>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+
+            // Attach event listeners
+            document.querySelectorAll('.checkbox').forEach(cb => {
+                cb.addEventListener('click', () => toggleComplete(parseInt(cb.dataset.id)));
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => openEditReadingModal(parseInt(btn.dataset.id)));
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => openDeleteModal(parseInt(btn.dataset.id)));
+            });
+
+            document.querySelectorAll('.category-edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openEditSectionModal(btn.dataset.category);
+                });
+            });
+
+            document.querySelectorAll('.category-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openCategoryDeleteModal(btn.dataset.category);
+                });
+            });
+
+            // Add to section buttons
+            document.querySelectorAll('.add-to-section-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openAddReadingModalWithCategory(btn.dataset.category);
+                });
+            });
+
+            // Drag and drop event listeners
+            initDragAndDrop();
+        }
+
+        // Drag and Drop functionality
+        let draggedItem = null;
+        let draggedId = null;
+
+        function initDragAndDrop() {
+            const readingItems = document.querySelectorAll('.reading-item');
+            const categories = document.querySelectorAll('.category');
+
+            readingItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+
+            categories.forEach(category => {
+                category.addEventListener('dragover', handleDragOver);
+                category.addEventListener('dragleave', handleDragLeave);
+                category.addEventListener('drop', handleDrop);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            draggedId = parseInt(this.dataset.id);
+            this.classList.add('dragging');
+
+            // Set drag data
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedId);
+
+            // Add slight delay to allow dragging visual to show
+            setTimeout(() => {
+                this.style.opacity = '0.4';
+            }, 0);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            this.style.opacity = '';
+            draggedItem = null;
+            draggedId = null;
+
+            // Remove all drag-over classes and drop indicators
+            document.querySelectorAll('.category').forEach(cat => {
+                cat.classList.remove('drag-over');
+            });
+            document.querySelectorAll('.drop-indicator').forEach(ind => {
+                ind.classList.remove('visible');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const category = this.closest('.category');
+            if (category) {
+                category.classList.add('drag-over');
+                const indicator = category.querySelector('.drop-indicator');
+                if (indicator) {
+                    indicator.classList.add('visible');
+                }
+            }
+        }
+
+        function handleDragLeave(e) {
+            const category = this.closest('.category');
+            if (category && !category.contains(e.relatedTarget)) {
+                category.classList.remove('drag-over');
+                const indicator = category.querySelector('.drop-indicator');
+                if (indicator) {
+                    indicator.classList.remove('visible');
+                }
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+
+            const category = this.closest('.category');
+            if (!category || !draggedId) return;
+
+            const targetCategory = category.dataset.category;
+            const reading = readings.find(r => r.id === draggedId);
+
+            if (reading && reading.category !== targetCategory) {
+                // Update the reading's category
+                reading.category = targetCategory;
+                saveReadings();
+                render();
+            }
+
+            // Clean up
+            category.classList.remove('drag-over');
+            const indicator = category.querySelector('.drop-indicator');
+            if (indicator) {
+                indicator.classList.remove('visible');
+            }
+        }
+
+        function toggleComplete(id) {
+            if (completedIds.includes(id)) {
+                completedIds = completedIds.filter(i => i !== id);
+            } else {
+                completedIds.push(id);
+            }
+            localStorage.setItem('ai-reading-completed', JSON.stringify(completedIds));
+            updateStats();
+            render();
+        }
+
+        // Inline Editing Functions
+        function startInlineEdit(element, type, originalValue) {
+            if (element.querySelector('.inline-edit')) return; // Already editing
+
+            const currentText = element.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'inline-edit';
+            input.value = currentText;
+
+            element.textContent = '';
+            element.appendChild(input);
+            input.focus();
+            input.select();
+
+            function finishEdit() {
+                const newValue = input.value.trim();
+                if (newValue && newValue !== currentText) {
+                    if (type === 'title') {
+                        pageSettings.title = newValue;
+                        localStorage.setItem('ai-reading-page-settings', JSON.stringify(pageSettings));
+                        element.textContent = newValue;
+                        document.title = newValue;
+                    } else if (type === 'subtitle') {
+                        pageSettings.subtitle = newValue;
+                        localStorage.setItem('ai-reading-page-settings', JSON.stringify(pageSettings));
+                        element.textContent = newValue;
+                    } else if (type === 'category') {
+                        categoryNames[originalValue] = newValue;
+                        localStorage.setItem('ai-reading-categories', JSON.stringify(categoryNames));
+                        updateCategoryDropdown();
+                        renderSectionFilters();
+                        render();
+                    }
+                } else {
+                    element.textContent = currentText;
+                }
+            }
+
+            input.addEventListener('blur', finishEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    input.value = currentText;
+                    input.blur();
+                }
+            });
+        }
+
+        function updateCategoryDropdown() {
+            const select = document.getElementById('reading-category');
+            const categoryOrder = getCategoryOrder();
+            select.innerHTML = categoryOrder.map(cat =>
+                `<option value="${cat}">${getDisplayCategoryName(cat)}</option>`
+            ).join('');
+        }
+
+        function initPageSettings() {
+            const titleEl = document.getElementById('page-title');
+
+            titleEl.textContent = pageSettings.title || defaultPageTitle;
+            document.title = pageSettings.title || defaultPageTitle;
+
+            titleEl.addEventListener('click', () => startInlineEdit(titleEl, 'title'));
+        }
+
+        // URL Metadata Fetching
+        async function fetchMetadataFromUrl(url) {
+            const statusEl = document.getElementById('fetch-status');
+            const fetchBtn = document.getElementById('fetch-metadata-btn');
+
+            if (!url || !url.trim()) {
+                statusEl.textContent = 'Please enter a URL first';
+                statusEl.className = 'fetch-status error';
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(url);
+            } catch {
+                statusEl.textContent = 'Please enter a valid URL';
+                statusEl.className = 'fetch-status error';
+                return;
+            }
+
+            statusEl.textContent = 'Fetching metadata...';
+            statusEl.className = 'fetch-status loading';
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = '...';
+
+            try {
+                // Try multiple CORS proxies as fallbacks
+                const proxies = [
+                    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+                ];
+
+                let html = null;
+                let lastError = null;
+
+                for (const proxyFn of proxies) {
+                    try {
+                        const proxyUrl = proxyFn(url);
+                        const response = await fetch(proxyUrl, {
+                            signal: AbortSignal.timeout(10000)
+                        });
+                        if (response.ok) {
+                            html = await response.text();
+                            break;
+                        }
+                    } catch (e) {
+                        lastError = e;
+                        continue;
+                    }
+                }
+
+                if (!html) {
+                    throw lastError || new Error('All proxies failed');
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Extract metadata
+                const metadata = extractMetadata(doc, url);
+
+                // Fill in the form fields (overwrite defaults)
+                const titleField = document.getElementById('reading-title');
+                const authorField = document.getElementById('reading-author');
+                const yearField = document.getElementById('reading-year');
+
+                let fieldsFound = [];
+
+                if (metadata.title) {
+                    titleField.value = metadata.title;
+                    fieldsFound.push('title');
+                }
+                if (metadata.author) {
+                    authorField.value = metadata.author;
+                    fieldsFound.push('author');
+                }
+                if (metadata.year) {
+                    yearField.value = metadata.year;
+                    fieldsFound.push('year');
+                }
+
+                if (fieldsFound.length > 0) {
+                    statusEl.textContent = `Found: ${fieldsFound.join(', ')}. Review and adjust below.`;
+                    statusEl.className = 'fetch-status success';
+                } else {
+                    statusEl.textContent = 'Page fetched but no metadata found. Please fill in manually.';
+                    statusEl.className = 'fetch-status error';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                statusEl.textContent = 'Could not fetch metadata. Please fill in manually.';
+                statusEl.className = 'fetch-status error';
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = 'Fetch';
+            }
+        }
+
+        function extractMetadata(doc, url) {
+            const metadata = {
+                title: null,
+                author: null,
+                year: null,
+                description: null
+            };
+
+            // Try to get title
+            // First try og:title, then twitter:title, then <title>
+            const ogTitle = doc.querySelector('meta[property="og:title"]');
+            const twitterTitle = doc.querySelector('meta[name="twitter:title"]');
+            const titleTag = doc.querySelector('title');
+
+            if (ogTitle) {
+                metadata.title = ogTitle.getAttribute('content');
+            } else if (twitterTitle) {
+                metadata.title = twitterTitle.getAttribute('content');
+            } else if (titleTag) {
+                metadata.title = titleTag.textContent;
+            }
+
+            // Clean up title (remove common site name suffixes, but be conservative)
+            if (metadata.title) {
+                metadata.title = metadata.title
+                    .replace(/\s*\|\s*[^|]{1,30}$/, '')  // Only remove short suffixes after |
+                    .replace(/\s*[–—]\s*[^–—]{1,30}$/, '')  // Only remove short suffixes after dashes
+                    .replace(/\s*::\s*[^:]{1,30}$/, '')  // Only remove short suffixes after ::
+                    .trim();
+            }
+
+            // Try to get author
+            // Check various meta tags for author info
+            const authorMeta = doc.querySelector('meta[name="author"]') ||
+                              doc.querySelector('meta[property="article:author"]') ||
+                              doc.querySelector('meta[name="twitter:creator"]') ||
+                              doc.querySelector('meta[property="og:article:author"]');
+
+            if (authorMeta) {
+                metadata.author = authorMeta.getAttribute('content');
+            }
+
+            // Try to find author in common HTML patterns
+            if (!metadata.author) {
+                const authorEl = doc.querySelector('.author, .byline, [rel="author"], .post-author, .entry-author, [itemprop="author"]');
+                if (authorEl) {
+                    metadata.author = authorEl.textContent.replace(/^by\s+/i, '').trim();
+                }
+            }
+
+            // Try to get publication year
+            // Check article:published_time, datePublished, etc.
+            const dateMeta = doc.querySelector('meta[property="article:published_time"]') ||
+                            doc.querySelector('meta[name="date"]') ||
+                            doc.querySelector('meta[name="DC.date"]') ||
+                            doc.querySelector('time[datetime]') ||
+                            doc.querySelector('[itemprop="datePublished"]');
+
+            if (dateMeta) {
+                const dateStr = dateMeta.getAttribute('content') ||
+                               dateMeta.getAttribute('datetime') ||
+                               dateMeta.textContent;
+                const yearMatch = dateStr.match(/(\d{4})/);
+                if (yearMatch) {
+                    metadata.year = parseInt(yearMatch[1]);
+                }
+            }
+
+            // Try to get description
+            const ogDesc = doc.querySelector('meta[property="og:description"]');
+            const twitterDesc = doc.querySelector('meta[name="twitter:description"]');
+            const metaDesc = doc.querySelector('meta[name="description"]');
+
+            if (ogDesc) {
+                metadata.description = ogDesc.getAttribute('content');
+            } else if (twitterDesc) {
+                metadata.description = twitterDesc.getAttribute('content');
+            } else if (metaDesc) {
+                metadata.description = metaDesc.getAttribute('content');
+            }
+
+            // Truncate description if too long
+            if (metadata.description && metadata.description.length > 100) {
+                metadata.description = metadata.description.substring(0, 97) + '...';
+            }
+
+            // Special handling for known sites
+            const hostname = new URL(url).hostname;
+
+            // arXiv papers
+            if (hostname.includes('arxiv.org')) {
+                const arxivAuthors = doc.querySelector('.authors');
+                if (arxivAuthors) {
+                    metadata.author = arxivAuthors.textContent.replace('Authors:', '').trim();
+                    // Get first author if multiple
+                    if (metadata.author.includes(',')) {
+                        metadata.author = metadata.author.split(',')[0].trim() + ' et al.';
+                    }
+                }
+            }
+
+            // Clean up author (remove @ handles, etc.)
+            if (metadata.author) {
+                metadata.author = metadata.author
+                    .replace(/@\w+/g, '')
+                    .replace(/^\s*by\s+/i, '')
+                    .trim();
+            }
+
+            return metadata;
+        }
+
+        // Reading Modal Functions
+        function openAddReadingModal() {
+            openAddReadingModalWithCategory('Quick Reads (5-15 min)');
+        }
+
+        function openAddReadingModalWithCategory(category) {
+            currentReadingId = null;
+            document.getElementById('reading-modal-title').textContent = 'Add New Reading';
+            document.getElementById('reading-title').value = '';
+            document.getElementById('reading-author').value = '';
+            document.getElementById('reading-year').value = new Date().getFullYear();
+            document.getElementById('reading-category').value = category;
+            document.getElementById('reading-url').value = '';
+            document.getElementById('fetch-status').textContent = '';
+            document.getElementById('fetch-status').className = 'fetch-status';
+            readingModal.classList.add('active');
+            document.getElementById('reading-url').focus();
+        }
+
+        function openEditReadingModal(id) {
+            currentReadingId = id;
+            const reading = readings.find(r => r.id === id);
+            document.getElementById('reading-modal-title').textContent = 'Edit Reading';
+            document.getElementById('reading-title').value = reading.title;
+            document.getElementById('reading-author').value = reading.author;
+            document.getElementById('reading-year').value = reading.year;
+            document.getElementById('reading-category').value = reading.category;
+            document.getElementById('reading-url').value = reading.url || '';
+            document.getElementById('fetch-status').textContent = '';
+            document.getElementById('fetch-status').className = 'fetch-status';
+            readingModal.classList.add('active');
+        }
+
+        function closeReadingModal() {
+            readingModal.classList.remove('active');
+            currentReadingId = null;
+        }
+
+        function saveReading() {
+            const title = document.getElementById('reading-title').value.trim();
+            const author = document.getElementById('reading-author').value.trim();
+            const year = parseInt(document.getElementById('reading-year').value);
+            const category = document.getElementById('reading-category').value;
+            const url = document.getElementById('reading-url').value.trim() || null;
+
+            if (!title || !author || !year) {
+                alert('Please fill in all required fields (Title, Author, Year)');
+                return;
+            }
+
+            if (currentReadingId === null) {
+                // Add new reading
+                const newId = Math.max(...readings.map(r => r.id), 0) + 1;
+                readings.push({
+                    id: newId,
+                    title,
+                    author,
+                    year,
+                    category,
+                    url
+                });
+            } else {
+                // Edit existing
+                const index = readings.findIndex(r => r.id === currentReadingId);
+                if (index !== -1) {
+                    readings[index] = {
+                        ...readings[index],
+                        title,
+                        author,
+                        year,
+                        category,
+                        url
+                    };
+                }
+            }
+
+            saveReadings();
+            updateStats();
+            render();
+            closeReadingModal();
+        }
+
+        // Delete Modal Functions
+        function openDeleteModal(id) {
+            currentReadingId = id;
+            const reading = readings.find(r => r.id === id);
+            document.getElementById('delete-message').textContent = `Are you sure you want to delete "${reading.title}"?`;
+            deleteModal.classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            deleteModal.classList.remove('active');
+            currentReadingId = null;
+        }
+
+        function confirmDelete() {
+            if (currentReadingId !== null) {
+                readings = readings.filter(r => r.id !== currentReadingId);
+                completedIds = completedIds.filter(id => id !== currentReadingId);
+
+                saveReadings();
+                localStorage.setItem('ai-reading-completed', JSON.stringify(completedIds));
+
+                updateStats();
+                render();
+            }
+            closeDeleteModal();
+        }
+
+        // Category Delete Functions
+        function openCategoryDeleteModal(category) {
+            categoryToDelete = category;
+            const categoryOrder = getCategoryOrder();
+
+            // Find the preceding category that has readings
+            const categoriesWithReadings = categoryOrder.filter(cat =>
+                readings.some(r => r.category === cat)
+            );
+            const currentIndex = categoriesWithReadings.indexOf(category);
+            const precedingCategory = currentIndex > 0 ? categoriesWithReadings[currentIndex - 1] : null;
+
+            if (!precedingCategory) {
+                alert('Cannot delete the first section.');
+                return;
+            }
+
+            const itemCount = readings.filter(r => r.category === category).length;
+            const displayName = getDisplayCategoryName(category);
+            const precedingDisplayName = getDisplayCategoryName(precedingCategory);
+
+            document.getElementById('category-delete-message').innerHTML =
+                `This will merge <strong>${itemCount} reading${itemCount !== 1 ? 's' : ''}</strong> from "<strong>${displayName}</strong>" into "<strong>${precedingDisplayName}</strong>".<br><br>This action cannot be undone.`;
+
+            categoryDeleteModal.classList.add('active');
+        }
+
+        function closeCategoryDeleteModal() {
+            categoryDeleteModal.classList.remove('active');
+            categoryToDelete = null;
+        }
+
+        function confirmCategoryDelete() {
+            if (!categoryToDelete) return;
+            const categoryOrder = getCategoryOrder();
+
+            // Find the preceding category with readings
+            const categoriesWithReadings = categoryOrder.filter(cat =>
+                readings.some(r => r.category === cat)
+            );
+            const currentIndex = categoriesWithReadings.indexOf(categoryToDelete);
+            const precedingCategory = currentIndex > 0 ? categoriesWithReadings[currentIndex - 1] : null;
+
+            if (precedingCategory) {
+                // Move all readings from categoryToDelete to precedingCategory
+                readings.forEach(r => {
+                    if (r.category === categoryToDelete) {
+                        r.category = precedingCategory;
+                    }
+                });
+
+                // Remove any custom name for the deleted category
+                delete categoryNames[categoryToDelete];
+                localStorage.setItem('ai-reading-categories', JSON.stringify(categoryNames));
+
+                saveReadings();
+                updateCategoryDropdown();
+                renderSectionFilters();
+                updateStats();
+                render();
+            }
+
+            closeCategoryDeleteModal();
+        }
+
+        // Edit Section Modal Functions
+        function openEditSectionModal(category) {
+            categoryToEdit = category;
+            const displayName = getDisplayCategoryName(category);
+            document.getElementById('edit-section-name').value = displayName;
+            editSectionModal.classList.add('active');
+            document.getElementById('edit-section-name').focus();
+        }
+
+        function closeEditSectionModal() {
+            editSectionModal.classList.remove('active');
+            categoryToEdit = null;
+        }
+
+        function saveEditSection() {
+            const newName = document.getElementById('edit-section-name').value.trim();
+
+            if (!newName) {
+                alert('Please enter a section name');
+                return;
+            }
+
+            if (categoryToEdit) {
+                // Save the new display name
+                categoryNames[categoryToEdit] = newName;
+                localStorage.setItem('ai-reading-categories', JSON.stringify(categoryNames));
+                updateCategoryDropdown();
+                renderSectionFilters();
+                render();
+            }
+
+            closeEditSectionModal();
+        }
+
+        // Section Modal Functions
+        function openSectionModal() {
+            document.getElementById('section-name').value = '';
+            populateSectionPositionDropdown();
+            sectionModal.classList.add('active');
+            document.getElementById('section-name').focus();
+        }
+
+        function closeSectionModal() {
+            sectionModal.classList.remove('active');
+        }
+
+        function populateSectionPositionDropdown() {
+            const select = document.getElementById('section-position');
+            const categoryOrder = getCategoryOrder();
+            let html = '<option value="0">At the beginning</option>';
+            categoryOrder.forEach((cat, index) => {
+                const displayName = getDisplayCategoryName(cat);
+                html += `<option value="${index + 1}">After "${displayName}"</option>`;
+            });
+            select.innerHTML = html;
+            // Default to end
+            select.value = categoryOrder.length;
+        }
+
+        function saveSection() {
+            const name = document.getElementById('section-name').value.trim();
+            const position = parseInt(document.getElementById('section-position').value);
+
+            if (!name) {
+                alert('Please enter a section name');
+                return;
+            }
+
+            // Check if name already exists
+            const allCategories = getCategoryOrder();
+            if (allCategories.includes(name) || Object.values(categoryNames).includes(name)) {
+                alert('A section with this name already exists');
+                return;
+            }
+
+            // Add to custom sections
+            customSections.push({ name, position });
+            localStorage.setItem('ai-reading-custom-sections', JSON.stringify(customSections));
+
+            // Update category dropdown and re-render
+            updateCategoryDropdown();
+            renderSectionFilters();
+            render();
+            closeSectionModal();
+        }
+
+        // Event listeners
+        document.getElementById('add-reading-btn').addEventListener('click', openAddReadingModal);
+        document.getElementById('add-section-btn').addEventListener('click', openSectionModal);
+
+        document.getElementById('reading-cancel').addEventListener('click', closeReadingModal);
+        document.getElementById('reading-save').addEventListener('click', saveReading);
+
+        // URL metadata fetching
+        document.getElementById('fetch-metadata-btn').addEventListener('click', () => {
+            const url = document.getElementById('reading-url').value;
+            fetchMetadataFromUrl(url);
+        });
+
+        // Auto-fetch when URL is pasted
+        document.getElementById('reading-url').addEventListener('paste', (e) => {
+            // Small delay to let the paste complete
+            setTimeout(() => {
+                const url = document.getElementById('reading-url').value;
+                if (url && url.startsWith('http')) {
+                    fetchMetadataFromUrl(url);
+                }
+            }, 100);
+        });
+
+        document.getElementById('delete-cancel').addEventListener('click', closeDeleteModal);
+        document.getElementById('delete-confirm').addEventListener('click', confirmDelete);
+
+        document.getElementById('category-delete-cancel').addEventListener('click', closeCategoryDeleteModal);
+        document.getElementById('category-delete-confirm').addEventListener('click', confirmCategoryDelete);
+
+        document.getElementById('section-cancel').addEventListener('click', closeSectionModal);
+        document.getElementById('section-save').addEventListener('click', saveSection);
+
+        document.getElementById('edit-section-cancel').addEventListener('click', closeEditSectionModal);
+        document.getElementById('edit-section-save').addEventListener('click', saveEditSection);
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                render();
+            });
+        });
+
+        searchBox.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            render();
+        });
+
+        // Close modals on overlay click
+        [readingModal, deleteModal, categoryDeleteModal, sectionModal, editSectionModal].forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset all progress? This will clear completed items (but keep your reading list).')) {
+                completedIds = [];
+                localStorage.removeItem('ai-reading-completed');
+                updateStats();
+                render();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                [readingModal, deleteModal, categoryDeleteModal, sectionModal, editSectionModal].forEach(m => m.classList.remove('active'));
+            }
+        });
+
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+
+        // Load sidebar state from localStorage
+        const sidebarCollapsed = localStorage.getItem('ai-reading-sidebar-collapsed') === 'true';
+        if (sidebarCollapsed) {
+            sidebar.classList.add('collapsed');
+        }
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('ai-reading-sidebar-collapsed', sidebar.classList.contains('collapsed'));
+        });
+
+        // Initialize
+        initPageSettings();
+        updateCategoryDropdown();
+        renderSectionFilters();
+        updateStats();
+        render();
+    </script>
+</body>
+</html>
